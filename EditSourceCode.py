@@ -25,6 +25,26 @@ def init_decorator(newFile):
     newFile.write("@record_variable()\n")
     newFile.write("def _store_variable(v, vn, f, k):\n")
     newFile.write("    pass\n")
+    
+    newFile.write("def second_run_compare(variable, functionName, variableName, lineCount):\n")
+    newFile.write("    filePath = f'AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'\n")
+    newFile.write("    if os.path.exists(filePath):\n")
+    newFile.write("        pickle_objects = []\n")
+    newFile.write("        with open(filePath, 'rb') as f:\n")
+    newFile.write("            while True:\n")
+    newFile.write("                try:\n")
+    newFile.write("                    pickle_objects.append(pickle.load(f))\n")
+    newFile.write("                except EOFError:\n")
+    newFile.write("                    break\n")
+    newFile.write("        os.remove(filePath)\n")
+    newFile.write("        _old_variable = pickle_objects.pop(0)\n")
+    newFile.write("        if _old_variable != variable:\n")
+    newFile.write("            print(f'First difference at line {lineCount} and variable {variableName}')\n")
+    newFile.write("        for pick_obj in pickle_objects:\n")
+    newFile.write("            _store_variable(pick_obj, variableName, functionName, lineCount)\n")
+    
+    
+    
 '''
 
 def record_variable():
@@ -44,21 +64,25 @@ def _store_variable(v, vn, f, k):
 '''
 
 def add_decorator(newFile, spaces, functionName, variableName, lineCount):
-    newFile.write(f"#<SecondRun>{spaces}if os.path.exists('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'):\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*4}pickle_objects = []\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*4}with open('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl', 'rb') as f:\n")
     
-    newFile.write(f"#<SecondRun>{spaces+' '*8}while True:\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*12}try:\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*16}pickle_objects.append(pickle.load(f))\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*12}except EOFError:\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*16}break\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*4}os.remove('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl')\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*4}_old_{variableName} = pickle_objects.pop(0)\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*4}if _old_{variableName} != {variableName}:\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*8}print('First difference at line {lineCount} and variable {variableName}')\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*4}for pick_obj in pickle_objects:\n")
-    newFile.write(f"#<SecondRun>{spaces+' '*8}_store_variable(pick_obj, '{variableName}', '{functionName}', {lineCount})\n")
+    newFile.write(f"#<SecondRun>{spaces}second_run_compare({variableName}, '{functionName}', '{variableName}', {lineCount})\n")
+    
+    
+    # newFile.write(f"#<SecondRun>{spaces}if os.path.exists('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'):\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*4}pickle_objects = []\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*4}with open('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl', 'rb') as f:\n")
+    
+    # newFile.write(f"#<SecondRun>{spaces+' '*8}while True:\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*12}try:\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*16}pickle_objects.append(pickle.load(f))\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*12}except EOFError:\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*16}break\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*4}os.remove('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl')\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*4}_old_{variableName} = pickle_objects.pop(0)\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*4}if _old_{variableName} != {variableName}:\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*8}print('First difference at line {lineCount} and variable {variableName}')\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*4}for pick_obj in pickle_objects:\n")
+    # newFile.write(f"#<SecondRun>{spaces+' '*8}_store_variable(pick_obj, )\n")
 
     newFile.write(f"{spaces}_store_variable({variableName}, '{variableName}', '{functionName}', {lineCount}) #<FirstRun>\n")
 
@@ -68,7 +92,7 @@ def CreateNewFile():
     comment_line = '#'
     comment_paragraph  = "'''"
     
-    file1 = open('File.py', 'r')
+    file1 = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py', 'r')
     Lines = file1.readlines()
     
     newFile = open('FileNew.py', 'w')
@@ -87,7 +111,7 @@ def CreateNewFile():
         if "def " in line:
             functionName = line.split('(')[0].split(' ')[1]
             print(functionName)
-        if "=" in line:
+        if "=" in line and '==' not in line:
             variableName = line.split('=')[0]
             variableName, sCount = spaceCount(variableName)
             spaces = ' ' * sCount
@@ -123,5 +147,5 @@ def editFileForRun2():
     os.rename('FileNewTemp.py', 'FileNew.py')
 
 if __name__ == "__main__":
-    # CreateNewFile()
-    editFileForRun2()
+    CreateNewFile()
+    # editFileForRun2()
