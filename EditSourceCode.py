@@ -8,7 +8,32 @@ def spaceCount(variableName):
             return variableName[i:], c
         c = c + 1
         
+def checkMultiline(line, stack = []):
+    mulLine = False
+    if line.endswith('\\\n'):
+        mulLine = True
 
+    open_list = ["[","{","("]
+    close_list = ["]","}",")"]
+    # print("Brackets: ", end='')
+    for i in line:
+        
+        if i in open_list:
+            stack.append(i)
+            # print(i, end='')
+
+        elif i in close_list:
+            # print(i, end='')
+
+            pos = close_list.index(i)
+            if ((len(stack) > 0) and
+                (open_list[pos] == stack[len(stack)-1])):
+                stack.pop()
+            else:
+                return "Unbalanced"
+    # print()
+    return mulLine, stack
+    
 def init_decorator(newFile):
     newFile.write("import pickle\n")
     newFile.write("import os\n")
@@ -26,7 +51,7 @@ def init_decorator(newFile):
     newFile.write("def _store_variable(v, vn, f, k):\n")
     newFile.write("    pass\n")
     
-    newFile.write("def second_run_compare(variable, functionName, variableName, lineCount):\n")
+    newFile.write("def second_run_compare(variable, variableName, functionName, lineCount):\n")
     newFile.write("    filePath = f'AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'\n")
     newFile.write("    if os.path.exists(filePath):\n")
     newFile.write("        pickle_objects = []\n")
@@ -65,7 +90,7 @@ def _store_variable(v, vn, f, k):
 
 def add_decorator(newFile, spaces, functionName, variableName, lineCount):
     
-    newFile.write(f"#<SecondRun>{spaces}second_run_compare({variableName}, '{functionName}', '{variableName}', {lineCount})\n")
+    newFile.write(f"#<SecondRun>{spaces}second_run_compare({variableName}, '{variableName}', '{functionName}', {lineCount})\n")
     
     
     # newFile.write(f"#<SecondRun>{spaces}if os.path.exists('AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'):\n")
@@ -93,15 +118,17 @@ def CreateNewFile():
     comment_paragraph  = "'''"
     
     file1 = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py', 'r')
-    Lines = file1.readlines()
-    
+    file1Lines = file1.readlines()
+    Lines = iter(file1Lines)
     newFile = open('FileNew.py', 'w')
     init_decorator(newFile)
     lineCount = 0
     commentFlag = 0
     # Strips the newline character
+    functionName = ''
     for line in Lines:
         newFile.write(line)
+        
         if comment_line in line:
             line = line.split("#")[0]
         if comment_paragraph in line:
@@ -109,16 +136,30 @@ def CreateNewFile():
         if commentFlag:
             continue
         if "def " in line:
-            functionName = line.split('(')[0].split(' ')[1]
-            print(functionName)
-        if "=" in line and '==' not in line:
+            functionName = line.split('(')[0]
+            functionName = functionName.replace('def', '')
+            functionName = functionName.replace(' ', '')
+            
+            
+        if "=" in line:
             variableName = line.split('=')[0]
             variableName, sCount = spaceCount(variableName)
             spaces = ' ' * sCount
             variableName = variableName.replace(' ', '')
+            mulLine, bracketStack = checkMultiline(line)
+            # if mulLine:
+            #     print("jjjjjjjjjjjjjjjjjjjjjjjjjjjjj")
+            # print(line)
+            
+            while len(bracketStack) != 0 or mulLine:
+                # print(bracketStack)
+                line = next(Lines)
+                newFile.write(line)
+
+                mulLine, bracketStack = checkMultiline(line, bracketStack)
             if "," in variableName:
                 variableNames = variableName.split(',')
-                print("hue,", variableNames)
+                # print("hue,", variableNames)
                 for v in variableNames:
                     add_decorator(newFile, spaces, functionName, v, lineCount)
             else:
@@ -127,8 +168,8 @@ def CreateNewFile():
                 
     
             
-            print(line)
-            print(variableName)
+            # print(line)
+            # print(variableName)
         lineCount += 1
     newFile.close()
 
