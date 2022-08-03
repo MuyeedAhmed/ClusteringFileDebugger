@@ -1,5 +1,5 @@
 import os
-
+import re
 
 def spaceCount(variableName):
     c = 0
@@ -9,10 +9,10 @@ def spaceCount(variableName):
         c = c + 1
         
 def checkMultiline(line, stack = []):
+    # print(line)
     mulLine = False
     if line.endswith('\\\n'):
         mulLine = True
-
     open_list = ["[","{","("]
     close_list = ["]","}",")"]
     # print("Brackets: ", end='')
@@ -31,7 +31,7 @@ def checkMultiline(line, stack = []):
                 stack.pop()
             else:
                 return "Unbalanced"
-    # print()
+    # print(' - ', stack, mulLine)
     return mulLine, stack
     
 def init_decorator(newFile):
@@ -50,6 +50,7 @@ def init_decorator(newFile):
     newFile.write("@record_variable()\n")
     newFile.write("def _store_variable(v, vn, f, k):\n")
     newFile.write("    pass\n")
+            
     
     newFile.write("def second_run_compare(variable, variableName, functionName, lineCount):\n")
     newFile.write("    filePath = f'AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'\n")
@@ -63,8 +64,13 @@ def init_decorator(newFile):
     newFile.write("                    break\n")
     newFile.write("        os.remove(filePath)\n")
     newFile.write("        _old_variable = pickle_objects.pop(0)\n")
-    newFile.write("        if _old_variable != variable:\n")
-    newFile.write("            print(f'First difference at line {lineCount} and variable {variableName}')\n")
+    
+    newFile.write("        if type(variable) is not np.ndarray:\n")
+    newFile.write("            if _old_variable != variable:\n")
+    newFile.write("                print(f'First difference at line {lineCount} and variable {variableName}')\n")
+    newFile.write("        else:\n")
+    newFile.write("            if (_old_variable == variable).all() == False:\n")
+    newFile.write("                print(f'First difference at line {lineCount} and variable {variableName}')\n")
     newFile.write("        for pick_obj in pickle_objects:\n")
     newFile.write("            _store_variable(pick_obj, variableName, functionName, lineCount)\n")
     
@@ -115,12 +121,14 @@ def add_decorator(newFile, spaces, functionName, variableName, lineCount):
 
 def CreateNewFile():
     comment_line = '#'
-    comment_paragraph  = "'''"
+    comment_paragraph1  = "'''"
+    comment_paragraph2  = "\"\"\""
     
-    file1 = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py', 'r')
+    
+    file1 = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation_old.py', 'r')
     file1Lines = file1.readlines()
     Lines = iter(file1Lines)
-    newFile = open('FileNew.py', 'w')
+    newFile = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/APFileNew.py', 'w')
     init_decorator(newFile)
     lineCount = 0
     commentFlag = 0
@@ -128,65 +136,145 @@ def CreateNewFile():
     functionName = ''
     for line in Lines:
         newFile.write(line)
+        # print(line)
+        # print(lineCount)
         
+        if comment_paragraph1 in line:
+            while comment_paragraph1 not in line:
+                line = next(Lines)
+                lineCount += 1
+                newFile.write(line)
+                print(line)
+            continue
+        # print(line)
+        if comment_paragraph2 in line:
+            # print(line)
+            while comment_paragraph2 not in line:
+                line = next(Lines)
+                lineCount += 1
+                newFile.write(line)
+                # print(line)
+            continue
+            
         if comment_line in line:
             line = line.split("#")[0]
-        if comment_paragraph in line:
-            commentFlag = 1 if commentFlag == 0 else 0
-        if commentFlag:
-            continue
+        
         if "def " in line:
             functionName = line.split('(')[0]
             functionName = functionName.replace('def', '')
             functionName = functionName.replace(' ', '')
-            
+            # mulLine, bracketStack = checkMultiline(line)
+            # print(functionName)
+            while ':' not in line:
+                line = next(Lines)
+                lineCount += 1
+                newFile.write(line)
+            continue
+        
+        chars_to_remove = ['==', '>=', '<=', '!=']
+        for char_to_remove in chars_to_remove:
+            line = line.replace(char_to_remove, '')
+        
             
         if "=" in line:
+            
             variableName = line.split('=')[0]
             variableName, sCount = spaceCount(variableName)
             spaces = ' ' * sCount
             variableName = variableName.replace(' ', '')
-            mulLine, bracketStack = checkMultiline(line)
-            # if mulLine:
-            #     print("jjjjjjjjjjjjjjjjjjjjjjjjjjjjj")
-            # print(line)
+            if '\"' in variableName:
+                continue
+            if '[' in variableName:
+                insideBracket = re.findall("\[.+\]", variableName)
+                for iB in insideBracket:
+                    variableName = variableName.replace(iB, '')
+            if '.flat' in variableName:
+                variableName = variableName.replace('.flat', '')
+                
+            mulLine, bracketStack = checkMultiline(line)            
             
             while len(bracketStack) != 0 or mulLine:
                 # print(bracketStack)
                 line = next(Lines)
+                lineCount += 1
                 newFile.write(line)
-
                 mulLine, bracketStack = checkMultiline(line, bracketStack)
             if "," in variableName:
                 variableNames = variableName.split(',')
                 # print("hue,", variableNames)
                 for v in variableNames:
                     add_decorator(newFile, spaces, functionName, v, lineCount)
-            else:
+                continue
+            operators = ['+', '-', '*', '/']
+            if any(operator in variableName for operator in operators):
+                for oprt in operators:
+                    variableName = variableName.replace(oprt, '')
                 add_decorator(newFile, spaces, functionName, variableName, lineCount)
-                    
-                
+                continue
+            if 'with' in variableName:
+                continue
+            
+            
+            add_decorator(newFile, spaces, functionName, variableName, lineCount)
+            continue
+        mulLine, bracketStack = checkMultiline(line)
+        # print(mulLine, bracketStack)
+        while len(bracketStack) != 0 or mulLine:
+            line = next(Lines)
+            lineCount += 1
+            newFile.write(line)
+            mulLine, bracketStack = checkMultiline(line, bracketStack)
+         
     
             
             # print(line)
             # print(variableName)
         lineCount += 1
     newFile.close()
+    os.remove('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py')
 
+    os.rename('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/APFileNew.py', '/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py')
 
 def editFileForRun2():
-    file1 = open('FileNew.py', 'r')
+    file1 = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py', 'r')
     Lines = file1.readlines()
     
-    newFile = open('FileNewTemp.py', 'w')
+    newFile = open('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/APFileNewTemp.py', 'w')
 
     for line in Lines:
         line = line.replace('#<SecondRun>', '')
         if '#<FirstRun>' not in line:
             newFile.write(line)
-    os.remove('FileNew.py')
-    os.rename('FileNewTemp.py', 'FileNew.py')
+    os.remove('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py')
+    os.rename('/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/APFileNewTemp.py', '/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py')
 
+
+
+
+import numpy as np
+import pandas as pd
+    
 if __name__ == "__main__":
-    CreateNewFile()
+    
+    # CreateNewFile()
+    # from sklearn.cluster import AffinityPropagation
+    # filepath = '/Users/muyeedahmed/Desktop/Research/Dataset/robot-failures-lp1.csv'
+    # X = pd.read_csv(filepath)
+    # X=X.to_numpy()
+    
+    # # # # X = np.array([[1, 2], [1, 4], [1, 0], [4, 2], [4, 4], [4, 0]])
+    # # # # X = np.random.rand(10,4)
+    # # # # X = np.random.randint(5, size=(2000, 4))
+    
+    # clustering = AffinityPropagation(random_state=None).fit(X)
+    # print(clustering.cluster_centers_)
+    
+    
     # editFileForRun2()
+    
+    from sklearn.cluster import AffinityPropagation
+    clustering = AffinityPropagation(random_state=None).fit(X)
+    print(clustering.cluster_centers_)
+    
+    
+    
