@@ -37,6 +37,7 @@ def checkMultiline(line, stack = []):
 def init_decorator(newFile):
     newFile.write("import pickle\n")
     newFile.write("import os\n")
+    newFile.write("import numpy\n")
     
     newFile.write("def record_variable():\n")
     newFile.write("    def inner(f):\n")
@@ -54,27 +55,35 @@ def init_decorator(newFile):
     
     newFile.write("def second_run_compare(variable, variableName, functionName, lineCount):\n")
     newFile.write("    filePath = f'AP_Variables/{functionName}_{variableName}_{lineCount}.pkl'\n")
+    newFile.write("    iterationFilePath = f'AP_Variables/{functionName}_{variableName}_{lineCount}.txt'\n")
     newFile.write("    if os.path.exists(filePath):\n")
-    newFile.write("        pickle_objects = []\n")
+    newFile.write("        iteration = 1\n")
+    newFile.write("        if os.path.exists(iterationFilePath):\n")
+    newFile.write("            with open(iterationFilePath) as f:\n")
+    newFile.write("                line = f.readline().rstrip()\n")
+    newFile.write("                iteration = int(line)+1\n")
+    newFile.write("            iterationFile = open(iterationFilePath, 'w')\n")
+    newFile.write("            iterationFile.write(str(iteration))\n")
+    newFile.write("            iterationFile.close()\n")
+    newFile.write("        else:\n")
+    newFile.write("            iterationFile = open(iterationFilePath, 'w')\n")
+    newFile.write("            iterationFile.write('1')\n")
+    newFile.write("            iterationFile.close()\n")
     newFile.write("        with open(filePath, 'rb') as f:\n")
-    newFile.write("            while True:\n")
+    newFile.write("            for i in range(iteration):\n")
     newFile.write("                try:\n")
-    newFile.write("                    pickle_objects.append(pickle.load(f))\n")
+    newFile.write("                    _old_variable = pickle.load(f)\n")
     newFile.write("                except EOFError:\n")
+    newFile.write("                    print(f'During Run 1, variable {variableName} in line {lineCount} changed {iteration-1} times. But in Run 2 it changed more than that')\n")    
     newFile.write("                    break\n")
-    newFile.write("        os.remove(filePath)\n")
-    newFile.write("        _old_variable = pickle_objects.pop(0)\n")
-    
-    newFile.write("        if type(variable) is not np.ndarray:\n")
-    newFile.write("            if _old_variable != variable:\n")
-    newFile.write("                print(f'First difference at line {lineCount} and variable {variableName}')\n")
+    newFile.write("        compare = _old_variable == variable\n")
+    newFile.write("        if hasattr(compare, \"__len__\") == False:\n")
+    newFile.write("            if compare == False:\n")
+    newFile.write("                print(f'Difference at line {lineCount} and variable {variableName}')\n")
     newFile.write("        else:\n")
     newFile.write("            if (_old_variable == variable).all() == False:\n")
-    newFile.write("                print(f'First difference at line {lineCount} and variable {variableName}')\n")
-    newFile.write("        for pick_obj in pickle_objects:\n")
-    newFile.write("            _store_variable(pick_obj, variableName, functionName, lineCount)\n")
-    
-    
+    newFile.write("                print(f'Difference at line {lineCount} and variable {variableName}')\n")
+
     
 '''
 
