@@ -285,5 +285,25 @@ if __name__ == "__main__":
     clustering = AffinityPropagation(random_state=None).fit(X)
     print(clustering.cluster_centers_)
     
+    trace = pd.read_csv('Trace.csv')
+    INIT = []
+    ITER = []
+    seq = []
+    StartOfLoop = -1
+    for i in range(trace.shape[0]):
+        if trace['iteration'][i] == 1 and StartOfLoop == -1:
+            INIT.append(trace['Line Count'][i])
+        if trace['iteration'][i] > 1 or StartOfLoop > -1:
+            if trace['Line Count'][i] in INIT:
+                INIT.remove(trace['Line Count'][i])
+            if  trace['Line Count'][i] == StartOfLoop:
+                ITER = list(set(ITER+seq))
+            if StartOfLoop == -1:
+                StartOfLoop = trace['Line Count'][i]
+                ITER.append(trace['Line Count'][i])
+            seq.append(trace['Line Count'][i])
+            # iterationValue = trace['iteration'][i]
+
+    print(ITER)
     
     
