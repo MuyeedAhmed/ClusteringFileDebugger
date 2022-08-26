@@ -1,0 +1,290 @@
+import os
+import re
+
+def spaceCount(variableName):
+    c = 0
+    for i in range(len(variableName)):
+        if variableName[i] != ' ':
+            return variableName[i:], c
+        c = c + 1
+        
+def checkMultiline(line, stack = []):
+    # print(line)
+    mulLine = False
+    if line.endswith('\\\n'):
+        mulLine = True
+    open_list = ["[","{","("]
+    close_list = ["]","}",")"]
+    # print("Brackets: ", end='')
+    for i in line:
+        
+        if i in open_list:
+            stack.append(i)
+            # print(i, end='')
+
+        elif i in close_list:
+            # print(i, end='')
+
+            pos = close_list.index(i)
+            if ((len(stack) > 0) and
+                (open_list[pos] == stack[len(stack)-1])):
+                stack.pop()
+            else:
+                return "Unbalanced"
+    # print(' - ', stack, mulLine)
+    return mulLine, stack
+    
+def init_decorator(newFile):
+    newFile.write("%-------------------------Log save--------------------\n")
+    newFile.write("function store_variable(v, vn, lineCount)\n")
+    newFile.write("    iterationFilePath = strcat('Data/',vn, '_', int2str(lineCount), '_iter_run1.mat');\n")
+    newFile.write("    if isfile(iterationFilePath)\n")
+    newFile.write("        iterNum = load(iterationFilePath);\n")
+    newFile.write("        iterNum = iterNum.iterNum+1;\n")
+    newFile.write("        save(iterationFilePath,'iterNum');\n")
+    newFile.write("    else\n")
+    newFile.write("        iterNum = 1;\n")
+    newFile.write("        save(iterationFilePath,'iterNum');\n")
+    newFile.write("    end\n")
+    newFile.write("    saveFileName = strcat('Data/',vn, '_', int2str(lineCount), '_', int2str(iterNum), '.mat');\n")
+    newFile.write("    save(saveFileName, 'v')\n")
+    newFile.write("end\n")
+
+    newFile.write("function second_run_compare(new_v, vn, lineCount)\n")
+    newFile.write("    iterationFilePath = strcat('Data/',vn, '_', int2str(lineCount), '_iter_run2.mat');\n")
+    newFile.write("    if isfile(iterationFilePath)\n")
+    newFile.write("        iterNum = load(iterationFilePath);\n")
+    newFile.write("        iterNum = iterNum.iterNum+1;\n")
+    newFile.write("        save(iterationFilePath,'iterNum');\n")
+    newFile.write("    else\n")
+    newFile.write("        iterNum = 1;\n")
+    newFile.write("        save(iterationFilePath,'iterNum');\n")
+    newFile.write("    end\n")
+    newFile.write("    loadFileName = strcat('Data/',vn, '_', int2str(lineCount), '_', int2str(iterNum), '.mat');\n")
+    newFile.write("    if isfile(loadFileName) == 0\n")
+    newFile.write("        fprintf(\"During Run 1, variable %s in line %d changed %d times. But in Run 2 it changed more than that.\\n\", vn, lineCount, (iterNum-1))\n")
+    newFile.write("        return\n")
+    newFile.write("    end\n")
+    newFile.write("    prevValue = load(loadFileName);\n")
+    newFile.write("    if isstruct(prevValue.v)\n")
+    newFile.write("        sameValue = isequaln(prevValue.v, new_v);\n")
+    newFile.write("    elseif iscell(prevValue.v) || iscell(new_v)\n")
+    newFile.write("        sameValue = all(strcmpi(prevValue.v,new_v));\n")
+    newFile.write("    elseif strcmp(class(prevValue.v),'function_handle')\n")
+    newFile.write("        return\n")
+    newFile.write("    else\n")
+    newFile.write("        if all(size(prevValue.v) == size(new_v))\n")
+    newFile.write("            sameValue = all(prevValue.v == new_v, 'all');\n")
+    newFile.write("        else\n")
+    newFile.write("            sameValue = 0;\n")
+    newFile.write("        end\n")
+    newFile.write("    end\n")
+    newFile.write("    if sameValue == 0\n")
+    newFile.write("        fprintf(\"Mismatch in line %d and variable %s\\n\", lineCount, vn)\n")
+    newFile.write("    end\n")
+        
+    newFile.write("    fid = fopen('Trace.csv', 'a+');\n")
+    newFile.write("    fprintf(fid, '%s,%d,%d,%d\\n', vn, lineCount, iterNum, sameValue);\n")
+    newFile.write("    fclose(fid);\n")
+    newFile.write("end\n")
+
+
+    
+    
+    
+    
+
+def add_decorator(newFile, spaces, variableName, lineCount):
+    # print(f"%<SecondRun>{spaces}second_run_compare({variableName}, '{variableName}', {lineCount})\n")
+    newFile.write(f"%<SecondRun>{spaces}second_run_compare({variableName}, '{variableName}', {lineCount})\n")
+    newFile.write(f"{spaces}store_variable({variableName}, '{variableName}', {lineCount}) %<FirstRun>\n")
+
+
+
+def CreateNewFile():
+    comment_line = '%'
+    comment_paragraph1  = "%{"
+    
+    file1 = open('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans_old.m', 'r')
+    file1Lines = file1.readlines()
+    Lines = iter(file1Lines)
+    newFile = open('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans.m', 'w')
+    lineCount = 0
+    commentFlag = 0
+    # Strips the newline character
+    for line in Lines:
+        newFile.write(line)
+        lineCount += 1
+        # print(line)
+        # print(lineCount)
+        
+        # if comment_paragraph1 in line:
+        #     while comment_paragraph1 not in line:
+        #         line = next(Lines)
+        #         lineCount += 1
+        #         newFile.write(line)
+        #         print(line)
+        #     continue
+    
+        if comment_line in line:
+            line = line.split("%")[0]
+        while "..." in line:
+            line = line.replace('...', '')
+            line = line.replace('\n', '')
+            nextLine = next(Lines)
+            newFile.write(nextLine)
+            line = line+nextLine
+            lineCount+=1
+            # print(line)
+        if "function " in line:
+        #     functionName = line.split('(')[0]
+        #     functionName = functionName.replace('def', '')
+        #     functionName = functionName.replace(' ', '')
+        #     # mulLine, bracketStack = checkMultiline(line)
+        #     # print(functionName)
+        #     while ':' not in line:
+        #         line = next(Lines)
+        #         lineCount += 1
+        #         newFile.write(line)
+            continue
+        
+        chars_to_remove = ['==', '>=', '<=', '~=']
+        for char_to_remove in chars_to_remove:
+            line = line.replace(char_to_remove, '')
+        
+            
+        if "=" in line:
+            if "for" in line:
+                continue
+            variableName = line.split('=')[0]
+            # print(variableName, " ", str(lineCount))
+            variableName, sCount = spaceCount(variableName)
+            spaces = ' ' * sCount
+            variableName = variableName.replace(' ', '')
+            if '\"' in variableName:
+                continue
+            if '(' in variableName:
+                temp = ''
+                brackets = 0
+                for si in variableName:
+                    if si == '(':
+                        brackets += 1
+                    if brackets == 0:
+                        temp += si                        
+                    if si == ')':
+                        brackets -= 1
+                variableName = temp
+                
+            # if '.flat' in variableName:
+            #     variableName = variableName.replace('.flat', '')
+                
+            # mulLine, bracketStack = checkMultiline(line)            
+            
+            # while len(bracketStack) != 0 or mulLine:
+            #     # print(bracketStack)
+            #     line = next(Lines)
+            #     lineCount += 1
+            #     newFile.write(line)
+            #     mulLine, bracketStack = checkMultiline(line, bracketStack)
+            if "," in variableName:
+                variableName = variableName.replace('[', '')
+                variableName = variableName.replace(']', '')
+                variableNames = variableName.split(',')
+                
+                for v in variableNames:
+                    if v == '~':
+                        continue
+                    add_decorator(newFile, spaces, v, lineCount)
+                continue
+            # operators = ['+', '-', '*', '/']
+            # if any(operator in variableName for operator in operators):
+            #     for oprt in operators:
+            #         variableName = variableName.replace(oprt, '')
+            #     add_decorator(newFile, spaces, variableName, lineCount)
+            #     continue
+            # if 'with' in variableName:
+            #     continue
+            
+            
+            add_decorator(newFile, spaces, variableName, lineCount)
+            continue
+    #     mulLine, bracketStack = checkMultiline(line)
+    #     # print(mulLine, bracketStack)
+    #     while len(bracketStack) != 0 or mulLine:
+    #         line = next(Lines)
+    #         lineCount += 1
+    #         newFile.write(line)
+    #         mulLine, bracketStack = checkMultiline(line, bracketStack)
+    init_decorator(newFile)
+
+    newFile.close()
+    # os.remove('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans.m')
+
+    # os.rename('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans.m', '/Users/muyeedahmed/Desktop/DecoratorTest/scikit-learn/sklearn/cluster/_affinity_propagation.py')
+
+def editFileForRun2():
+    file1 = open('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans.m', 'r')
+    Lines = file1.readlines()
+    
+    newFile = open('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans_temp.m', 'w')
+
+    for line in Lines:
+        line = line.replace('%<SecondRun>', '')
+        if '%<FirstRun>' not in line:
+            newFile.write(line)
+    os.remove('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans.m')
+    os.rename('/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans_temp.m', '/Applications/MATLAB_R2021a.app/toolbox/stats/stats/kmeans.m')
+
+
+
+
+import numpy as np
+import pandas as pd
+    
+if __name__ == "__main__":
+    
+    CreateNewFile()
+    # from sklearn.cluster import AffinityPropagation
+    # filepath = '/Users/muyeedahmed/Desktop/Research/Dataset/robot-failures-lp1.csv'
+    # X = pd.read_csv(filepath)
+    # X=X.to_numpy()
+    
+    # # # # X = np.array([[1, 2], [1, 4], [1, 0], [4, 2], [4, 4], [4, 0]])
+    # # # # X = np.random.rand(10,4)
+    # # # # X = np.random.randint(5, size=(2000, 4))
+    
+    # clustering = AffinityPropagation(random_state=None).fit(X)
+    # print(clustering.cluster_centers_)
+    
+    
+    # editFileForRun2()
+    # trace = open('Trace.csv', 'w')
+    # trace.write("Variable Name,Function Name,Line Count,iteration,Same Value)}\n")
+    # trace.close()    
+    
+    # from sklearn.cluster import AffinityPropagation
+    # clustering = AffinityPropagation(random_state=None).fit(X)
+    # print(clustering.cluster_centers_)
+    
+    # trace = pd.read_csv('Trace.csv')
+    # INIT = []
+    # ITER = []
+    # seq = []
+    # StartOfLoop = -1
+    # for i in range(trace.shape[0]):
+    #     if trace['iteration'][i] == 1 and StartOfLoop == -1:
+    #         INIT.append(trace['Line Count'][i])
+    #     if trace['iteration'][i] > 1 or StartOfLoop > -1:
+    #         if trace['Line Count'][i] in INIT:
+    #             INIT.remove(trace['Line Count'][i])
+    #         if  trace['Line Count'][i] == StartOfLoop:
+    #             ITER = list(set(ITER+seq))
+    #         if StartOfLoop == -1:
+    #             StartOfLoop = trace['Line Count'][i]
+    #             ITER.append(trace['Line Count'][i])
+    #         seq.append(trace['Line Count'][i])
+    #         # iterationValue = trace['iteration'][i]
+
+    # print(ITER)
+    
+ 
